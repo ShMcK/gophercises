@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 )
 
 // Problem Q&A
@@ -42,11 +43,28 @@ func loadProblemSet(path string) []Problem {
 	return problems
 }
 
-var timeout = 30
+func validateResponse(response string, answer string, progress *Progress) {
+	if strings.TrimSpace(response) == strings.TrimSpace(answer) {
+		fmt.Println("Correct!")
+		progress.correct++
+	} else {
+		fmt.Println("Wrong!")
+	}
+}
+
+func captureResponse(reader *bufio.Reader) string {
+	// read response until "enter" is pressed
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		log.Fatal("Invalid response")
+	}
+	return response
+}
 
 func main() {
 	// parse flags
 	csvFilename := flag.String("csv", "problems.csv", "a csv file with 'questions,answers' format")
+	timeout := flag.Int("timeout", 30, "time limit for the quiz in seconds")
 	flag.Parse()
 	// load csv
 	problems := loadProblemSet(*csvFilename)
@@ -58,23 +76,24 @@ func main() {
 
 	reader := bufio.NewReader(os.Stdin)
 
+	timer := time.NewTimer(time.Duration(*timeout) * time.Second).C
+
 	for i, p := range problems {
 		// question
 		fmt.Printf("Problem #%d: %s = \n", i+1, p.question)
+		responseChannel := make(chan string)
 
-		// read response until "enter" is pressed
-		response, err := reader.ReadString('\n')
+		go func() {
+			responseChannel <- captureResponse(reader)
+		}()
 
-		if err != nil {
-			log.Fatal("Invalid response")
-		}
-
-		// check answer
-		if strings.TrimSpace(response) == strings.TrimSpace(p.answer) {
-			fmt.Println("Correct!")
-			progress.correct++
-		} else {
-			fmt.Println("Wrong!")
+		select {
+		case <-timer:
+			fmt.Println("Time over!")
+			return
+		case response := <-responseChannel:
+			// check answer
+			validateResponse(response, p.answer, &progress)
 		}
 
 		// check is complete
