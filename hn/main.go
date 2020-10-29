@@ -33,7 +33,7 @@ func main() {
 func handler(numStories int, tpl *template.Template) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		stories, err := getTopStories(numStories)
+		stories, err := getCachedStories(numStories)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
@@ -70,6 +70,25 @@ func getTopStories(numStories int) ([]item, error) {
 		at += need
 	}
 
+	return stories, nil
+}
+
+var (
+	cache           []item
+	cacheExpiration time.Time
+) // global var!
+
+func getCachedStories(numStories int) ([]item, error) {
+	// check cache not expire
+	if time.Now().Sub(cacheExpiration) < 0 {
+		return cache, nil
+	}
+	stories, err := getTopStories(numStories)
+	cache = stories
+	cacheExpiration = time.Now().Add(1 * time.Second)
+	if err != nil {
+		return nil, err
+	}
 	return stories, nil
 }
 
