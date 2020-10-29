@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gophercises/quiet_hn/hn"
@@ -49,12 +50,6 @@ func handler(numStories int, tpl *template.Template) http.HandlerFunc {
 	})
 }
 
-type result struct {
-	index int
-	item  item
-	err   error
-}
-
 func getTopStories(numStories int) ([]item, error) {
 	var client hn.Client
 	ids, err := client.TopItems()
@@ -76,9 +71,13 @@ func getTopStories(numStories int) ([]item, error) {
 var (
 	cache           []item
 	cacheExpiration time.Time
+	cacheMutex      sync.Mutex
 ) // global var!
 
 func getCachedStories(numStories int) ([]item, error) {
+	// prevents cache race conditions
+	cacheMutex.Lock()
+	defer cacheMutex.Unlock()
 	// check cache not expire
 	if time.Now().Sub(cacheExpiration) < 0 {
 		return cache, nil
@@ -93,6 +92,11 @@ func getCachedStories(numStories int) ([]item, error) {
 }
 
 func getStories(ids []int) []item {
+	type result struct {
+		index int
+		item  item
+		err   error
+	}
 	resultCh := make(chan result)
 	numStories := len(ids)
 	for i := 0; i < numStories; i++ {
