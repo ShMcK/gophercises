@@ -74,11 +74,11 @@ func getTopStories(numStories int) ([]item, error) {
 }
 
 func getStories(ids []int) []item {
-	var client hn.Client
 	resultCh := make(chan result)
 	numStories := len(ids)
 	for i := 0; i < numStories; i++ {
 		go func(index, id int) {
+			var client hn.Client
 			hnItem, err := client.GetItem(id)
 			if err != nil {
 				resultCh <- result{err: err, index: index}
