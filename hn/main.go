@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -53,32 +54,39 @@ func getTopStories(numStories int) ([]item, error) {
 	if err != nil {
 		return nil, err
 	}
-	var stories []item
 	type result struct {
-		item item
-		err  error
+		index int
+		item  item
+		err   error
 	}
-	for _, id := range ids {
-		resultCh := make(chan result)
-		go func(id int) {
+	resultCh := make(chan result)
+	for i := 0; i < numStories; i++ {
+		go func(index, id int) {
 			hnItem, err := client.GetItem(id)
 			if err != nil {
-				resultCh <- result{err: err}
+				resultCh <- result{err: err, index: index}
 			}
-			resultCh <- result{item: parseHNItem(hnItem)}
-		}(id)
+			resultCh <- result{item: parseHNItem(hnItem), index: index}
+		}(i, ids[i])
+	}
 
-		res := <-resultCh
+	var results []result
 
+	for i := 0; i < numStories; i++ {
+		results = append(results, <-resultCh)
+	}
+
+	sort.Slice(results, func(i int, j int) bool {
+		return results[i].index < results[j].index
+	})
+
+	var stories []item
+	for _, res := range results {
 		if res.err != nil {
 			continue
 		}
-
 		if isStoryLink(res.item) {
 			stories = append(stories, res.item)
-			if len(stories) >= numStories {
-				break
-			}
 		}
 	}
 	return stories, nil
