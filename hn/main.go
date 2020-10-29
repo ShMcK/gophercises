@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"html/template"
@@ -48,18 +49,34 @@ func handler(numStories int, tpl *template.Template) http.HandlerFunc {
 	})
 }
 
+type result struct {
+	index int
+	item  item
+	err   error
+}
+
 func getTopStories(numStories int) ([]item, error) {
 	var client hn.Client
 	ids, err := client.TopItems()
 	if err != nil {
-		return nil, err
+		return nil, errors.New("Failed to load stories")
 	}
-	type result struct {
-		index int
-		item  item
-		err   error
+
+	var stories []item
+	at := 0
+	for len(stories) < numStories {
+		need := (numStories - len(stories)) * 5 / 4 // get extra stories due to filtered out comment threads
+		stories = append(stories, getStories(ids[at:at+need])...)
+		at += need
 	}
+
+	return stories, nil
+}
+
+func getStories(ids []int) []item {
+	var client hn.Client
 	resultCh := make(chan result)
+	numStories := len(ids)
 	for i := 0; i < numStories; i++ {
 		go func(index, id int) {
 			hnItem, err := client.GetItem(id)
@@ -89,7 +106,7 @@ func getTopStories(numStories int) ([]item, error) {
 			stories = append(stories, res.item)
 		}
 	}
-	return stories, nil
+	return stories[0:30]
 }
 
 func isStoryLink(item item) bool {
