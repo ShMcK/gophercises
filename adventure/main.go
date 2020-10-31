@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -23,6 +24,15 @@ type Option struct {
 	Arc  string `json:"arc"`
 }
 
+func JsonStory(r io.Reader) (Story, error) {
+	d := json.NewDecoder(r)
+	var story Story
+	if err := d.Decode(&story); err != nil {
+		return nil, err
+	}
+	return story, nil
+}
+
 func main() {
 	file := flag.String("file", "gopher.json", "the Choose Your Own Adventure file")
 	flag.Parse()
@@ -33,9 +43,8 @@ func main() {
 		panic(err)
 	}
 
-	d := json.NewDecoder(f)
-	var story Story
-	if err := d.Decode(&story); err != nil {
+	story, err := JsonStory(f)
+	if err != nil {
 		panic(err)
 	}
 
