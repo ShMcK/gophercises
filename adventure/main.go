@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 // Story a group of chapters
@@ -69,11 +70,22 @@ func NewHandler(s Story) http.Handler {
 
 func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	tpl := template.Must(template.New("").Parse(defaultHandlerTmpl))
-	err := tpl.Execute(w, h.s["intro"])
-	if err != nil {
-		panic(err)
+	path := strings.TrimSpace(r.URL.Path)
+	if path == "" || path == "/" {
+		path = "/intro"
 	}
-	return
+	path = path[1:] // remove pre-ceeding slash "/intro" -> "intro"
+
+	if _, ok := h.s[path]; ok {
+		err := tpl.Execute(w, h.s[path])
+		if err != nil {
+			log.Printf("%v", err)
+			http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		}
+		return
+	}
+	http.Error(w, "Chapter not found", http.StatusNotFound)
+
 }
 
 func main() {
