@@ -25,7 +25,6 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 
 func getInventory(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	fmt.Println("getInventory")
 
 	json.NewEncoder(w).Encode(inventory)
 }
@@ -36,6 +35,30 @@ func createItem(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewDecoder(r.Body).Decode(&item)
 
 	inventory = append(inventory, item)
+
+	json.NewEncoder(w).Encode(item)
+}
+
+func updateItem(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	params := mux.Vars(r)
+	id := params["id"]
+
+	var item Item
+	_ = json.NewDecoder(r.Body).Decode(&item)
+
+	for i, next := range inventory {
+		if next.ID == id {
+			inventory[i] = Item{
+				ID:    id,
+				Name:  item.Name,
+				Desc:  item.Desc,
+				Price: item.Price,
+			}
+			break
+		}
+	}
 
 	json.NewEncoder(w).Encode(item)
 }
@@ -62,6 +85,7 @@ func handleRequests() {
 	router.HandleFunc("/", homePage).Methods("GET")
 	router.HandleFunc("/inventory", getInventory).Methods("GET")
 	router.HandleFunc("/inventory", createItem).Methods("POST")
+	router.HandleFunc("/inventory/{id}", updateItem).Methods("PUT")
 	router.HandleFunc("/inventory/{id}", deleteItem).Methods("DELETE")
 
 	log.Fatal(http.ListenAndServe(":8000", router))
