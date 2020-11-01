@@ -85,8 +85,8 @@ func handleRequests() {
 	router.HandleFunc("/", homePage).Methods("GET")
 	router.HandleFunc("/inventory", getInventory).Methods("GET")
 	router.HandleFunc("/inventory", createItem).Methods("POST")
-	router.HandleFunc("/inventory/{id}", updateItem).Methods("PUT")
-	router.HandleFunc("/inventory/{id}", deleteItem).Methods("DELETE")
+	router.HandleFunc("/inventory/{id:[0-9]+}", updateItem).Methods("PUT")
+	router.HandleFunc("/inventory/{id:[0-9]+}", deleteItem).Methods("DELETE")
 
 	log.Fatal(http.ListenAndServe(":8000", router))
 }
